@@ -104,9 +104,7 @@ async function removeWatchdogPid(projectRoot: string): Promise<void> {
  * Default watchdog implementation for production use.
  * Starts/stops the watchdog daemon via `mycofleet watch --background`.
  */
-function createDefaultWatchdog(
-	projectRoot: string,
-): NonNullable<CoordinatorDeps["_watchdog"]> {
+function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps["_watchdog"]> {
 	return {
 		async start(): Promise<{ pid: number } | null> {
 			// Check if watchdog is already running
