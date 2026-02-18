@@ -290,21 +290,29 @@ async function main(): Promise<void> {
 
 main().catch((err: unknown) => {
 	// Friendly message when running outside a git repository
-	if (err instanceof WorktreeError && err.message.includes("not a git repository")) {
-		process.stderr.write("Not in an mycofleet project. Run 'mycofleet init' first.\n");
-		process.exit(1);
+	if (err instanceof WorktreeError) {
+		const e = err as WorktreeError;
+		if (e.message.includes("not a git repository")) {
+			process.stderr.write("Not in a MycoFleet project. Run 'mycofleet init' first.\n");
+			process.exit(1);
+		}
 	}
+
 	if (err instanceof MycofleetError) {
-		process.stderr.write(`Error [${err.code}]: ${err.message}\n`);
+		const e = err as MycofleetError;
+		process.stderr.write(`Error [${e.code}]: ${e.message}\n`);
 		process.exit(1);
 	}
+
 	if (err instanceof Error) {
 		process.stderr.write(`Error: ${err.message}\n`);
 		if (process.argv.includes("--verbose")) {
-			process.stderr.write(`${err.stack}\n`);
+			process.stderr.write(`${err.stack ?? ""}\n`);
 		}
 		process.exit(1);
 	}
+
 	process.stderr.write(`Unknown error: ${String(err)}\n`);
 	process.exit(1);
 });
+
