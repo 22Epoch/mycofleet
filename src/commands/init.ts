@@ -342,6 +342,14 @@ function buildHooksJson(): string {
 							type: "command",
 							command: "mulch learn",
 						},
+						{
+							type: "command",
+							command: "sh",
+								args: [
+								"-lc",
+								'if [ -n "$OVERSTORY_AGENT_NAME" ]; then mulch learn --since "${OVERSTORY_SESSION_START_ISO:-}" >/dev/null 2>&1 || true; fi',
+								],
+						},
 					],
 				},
 			],
