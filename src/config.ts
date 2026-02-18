@@ -13,14 +13,14 @@ export const DEFAULT_CONFIG: MycofleetConfig = {
 		canonicalBranch: "main",
 	},
 	agents: {
-		manifestPath: ".mycofleet/agent-manifest.json",
-		baseDir: ".mycofleet/agent-defs",
+		manifestPath: ".overstory/agent-manifest.json",
+		baseDir: ".overstory/agent-defs",
 		maxConcurrent: 25,
 		staggerDelayMs: 2_000,
 		maxDepth: 2,
 	},
 	worktrees: {
-		baseDir: ".mycofleet/worktrees",
+		baseDir: ".overstory/worktrees",
 	},
 	beads: {
 		enabled: true,
@@ -52,7 +52,7 @@ export const DEFAULT_CONFIG: MycofleetConfig = {
 
 const CONFIG_FILENAME = "config.yaml";
 const CONFIG_LOCAL_FILENAME = "config.local.yaml";
-const MYCOFLEET_DIR = ".mycofleet";
+const MYCOFLEET_DIR = ".overstory";
 
 /**
  * Minimal YAML parser that handles the config structure.
@@ -480,19 +480,19 @@ async function mergeLocalConfig(
  * Resolve the actual project root, handling git worktrees.
  *
  * When running from inside a git worktree (e.g., an agent's worktree at
- * `.mycofleet/worktrees/{name}/`), the passed directory won't contain
- * `.mycofleet/config.yaml`. This function detects worktrees using
+ * `.overstory/worktrees/{name}/`), the passed directory won't contain
+ * `.overstory/config.yaml`. This function detects worktrees using
  * `git rev-parse --git-common-dir` and resolves to the main repository root.
  *
  * @param startDir - The initial directory (usually process.cwd())
- * @returns The resolved project root containing `.mycofleet/`
+ * @returns The resolved project root containing `.overstory/`
  */
 export async function resolveProjectRoot(startDir: string): Promise<string> {
 	const { existsSync } = require("node:fs") as typeof import("node:fs");
 
 	// Check git worktree FIRST. When running from an agent worktree
-	// (e.g., .mycofleet/worktrees/{name}/), the worktree may contain
-	// tracked copies of .mycofleet/config.yaml. We must resolve to the
+	// (e.g., .overstory/worktrees/{name}/), the worktree may contain
+	// tracked copies of .overstory/config.yaml. We must resolve to the
 	// main repository root so runtime state (mail.db, metrics.db, etc.)
 	// is shared across all agents, not siloed per worktree.
 	try {
@@ -518,7 +518,7 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 	}
 
 	// Not inside a worktree (or git not available).
-	// Check if .mycofleet/config.yaml exists at startDir.
+	// Check if .overstory/config.yaml exists at startDir.
 	if (existsSync(join(startDir, MYCOFLEET_DIR, CONFIG_FILENAME))) {
 		return startDir;
 	}
@@ -530,7 +530,7 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 /**
  * Load the mycofleet configuration for a project.
  *
- * Reads `.mycofleet/config.yaml` from the project root, parses it,
+ * Reads `.overstory/config.yaml` from the project root, parses it,
  * merges with defaults, and validates the result.
  *
  * Automatically resolves the project root when running inside a git worktree.
