@@ -1,26 +1,26 @@
 import { dirname, join, resolve } from "node:path";
 import { ConfigError, ValidationError } from "./errors.ts";
-import type { OverstoryConfig } from "./types.ts";
+import type { MycofleetConfig } from "./types.ts";
 
 /**
  * Default configuration with all fields populated.
  * Used as the base; file-loaded values are merged on top.
  */
-export const DEFAULT_CONFIG: OverstoryConfig = {
+export const DEFAULT_CONFIG: MycofleetConfig = {
 	project: {
 		name: "",
 		root: "",
 		canonicalBranch: "main",
 	},
 	agents: {
-		manifestPath: ".overstory/agent-manifest.json",
-		baseDir: ".overstory/agent-defs",
+		manifestPath: ".mycofleet/agent-manifest.json",
+		baseDir: ".mycofleet/agent-defs",
 		maxConcurrent: 25,
 		staggerDelayMs: 2_000,
 		maxDepth: 2,
 	},
 	worktrees: {
-		baseDir: ".overstory/worktrees",
+		baseDir: ".mycofleet/worktrees",
 	},
 	beads: {
 		enabled: true,
@@ -52,7 +52,7 @@ export const DEFAULT_CONFIG: OverstoryConfig = {
 
 const CONFIG_FILENAME = "config.yaml";
 const CONFIG_LOCAL_FILENAME = "config.local.yaml";
-const OVERSTORY_DIR = ".overstory";
+const MYCOFLEET_DIR = ".mycofleet";
 
 /**
  * Minimal YAML parser that handles the config structure.
@@ -309,7 +309,7 @@ function migrateDeprecatedWatchdogKeys(parsed: Record<string, unknown>): void {
 	wd.tier0Enabled = wd.tier1Enabled;
 	wd.tier1Enabled = undefined;
 	process.stderr.write(
-		"[overstory] DEPRECATED: watchdog.tier1Enabled → use watchdog.tier0Enabled\n",
+		"[mycofleet] DEPRECATED: watchdog.tier1Enabled → use watchdog.tier0Enabled\n",
 	);
 
 	// Old tier1IntervalMs → new tier0IntervalMs (mechanical daemon)
@@ -317,7 +317,7 @@ function migrateDeprecatedWatchdogKeys(parsed: Record<string, unknown>): void {
 		wd.tier0IntervalMs = wd.tier1IntervalMs;
 		wd.tier1IntervalMs = undefined;
 		process.stderr.write(
-			"[overstory] DEPRECATED: watchdog.tier1IntervalMs → use watchdog.tier0IntervalMs\n",
+			"[mycofleet] DEPRECATED: watchdog.tier1IntervalMs → use watchdog.tier0IntervalMs\n",
 		);
 	}
 
@@ -326,7 +326,7 @@ function migrateDeprecatedWatchdogKeys(parsed: Record<string, unknown>): void {
 		wd.tier1Enabled = wd.tier2Enabled;
 		wd.tier2Enabled = undefined;
 		process.stderr.write(
-			"[overstory] DEPRECATED: watchdog.tier2Enabled → use watchdog.tier1Enabled\n",
+			"[mycofleet] DEPRECATED: watchdog.tier2Enabled → use watchdog.tier1Enabled\n",
 		);
 	}
 }
@@ -335,7 +335,7 @@ function migrateDeprecatedWatchdogKeys(parsed: Record<string, unknown>): void {
  * Validate that a config object has the required structure and sane values.
  * Throws ValidationError on failure.
  */
-function validateConfig(config: OverstoryConfig): void {
+function validateConfig(config: MycofleetConfig): void {
 	// project.root is required and must be a non-empty string
 	if (!config.project.root || typeof config.project.root !== "string") {
 		throw new ValidationError("project.root is required and must be a non-empty string", {
@@ -439,9 +439,9 @@ function validateConfig(config: OverstoryConfig): void {
  */
 async function mergeLocalConfig(
 	resolvedRoot: string,
-	config: OverstoryConfig,
-): Promise<OverstoryConfig> {
-	const localPath = join(resolvedRoot, OVERSTORY_DIR, CONFIG_LOCAL_FILENAME);
+	config: MycofleetConfig,
+): Promise<MycofleetConfig> {
+	const localPath = join(resolvedRoot, MYCOFLEET_DIR, CONFIG_LOCAL_FILENAME);
 	const localFile = Bun.file(localPath);
 
 	if (!(await localFile.exists())) {
@@ -473,26 +473,26 @@ async function mergeLocalConfig(
 	return deepMerge(
 		config as unknown as Record<string, unknown>,
 		parsed,
-	) as unknown as OverstoryConfig;
+	) as unknown as MycofleetConfig;
 }
 
 /**
  * Resolve the actual project root, handling git worktrees.
  *
  * When running from inside a git worktree (e.g., an agent's worktree at
- * `.overstory/worktrees/{name}/`), the passed directory won't contain
- * `.overstory/config.yaml`. This function detects worktrees using
+ * `.mycofleet/worktrees/{name}/`), the passed directory won't contain
+ * `.mycofleet/config.yaml`. This function detects worktrees using
  * `git rev-parse --git-common-dir` and resolves to the main repository root.
  *
  * @param startDir - The initial directory (usually process.cwd())
- * @returns The resolved project root containing `.overstory/`
+ * @returns The resolved project root containing `.mycofleet/`
  */
 export async function resolveProjectRoot(startDir: string): Promise<string> {
 	const { existsSync } = require("node:fs") as typeof import("node:fs");
 
 	// Check git worktree FIRST. When running from an agent worktree
-	// (e.g., .overstory/worktrees/{name}/), the worktree may contain
-	// tracked copies of .overstory/config.yaml. We must resolve to the
+	// (e.g., .mycofleet/worktrees/{name}/), the worktree may contain
+	// tracked copies of .mycofleet/config.yaml. We must resolve to the
 	// main repository root so runtime state (mail.db, metrics.db, etc.)
 	// is shared across all agents, not siloed per worktree.
 	try {
@@ -508,7 +508,7 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 			// Main repo root is the parent of the .git directory
 			const mainRoot = dirname(absGitCommon);
 			// If mainRoot differs from startDir, we're in a worktree — resolve to canonical root
-			if (mainRoot !== startDir && existsSync(join(mainRoot, OVERSTORY_DIR, CONFIG_FILENAME))) {
+			if (mainRoot !== startDir && existsSync(join(mainRoot, MYCOFLEET_DIR, CONFIG_FILENAME))) {
 				return mainRoot;
 			}
 		}
@@ -517,8 +517,8 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 	}
 
 	// Not inside a worktree (or git not available).
-	// Check if .overstory/config.yaml exists at startDir.
-	if (existsSync(join(startDir, OVERSTORY_DIR, CONFIG_FILENAME))) {
+	// Check if .mycofleet/config.yaml exists at startDir.
+	if (existsSync(join(startDir, MYCOFLEET_DIR, CONFIG_FILENAME))) {
 		return startDir;
 	}
 
@@ -527,23 +527,23 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 }
 
 /**
- * Load the overstory configuration for a project.
+ * Load the mycofleet configuration for a project.
  *
- * Reads `.overstory/config.yaml` from the project root, parses it,
+ * Reads `.mycofleet/config.yaml` from the project root, parses it,
  * merges with defaults, and validates the result.
  *
  * Automatically resolves the project root when running inside a git worktree.
  *
  * @param projectRoot - Absolute path to the target project root (or worktree)
- * @returns Fully populated and validated OverstoryConfig
+ * @returns Fully populated and validated MycofleetConfig
  * @throws ConfigError if the file cannot be read or parsed
  * @throws ValidationError if the merged config fails validation
  */
-export async function loadConfig(projectRoot: string): Promise<OverstoryConfig> {
+export async function loadConfig(projectRoot: string): Promise<MycofleetConfig> {
 	// Resolve the actual project root (handles git worktrees)
 	const resolvedRoot = await resolveProjectRoot(projectRoot);
 
-	const configPath = join(resolvedRoot, OVERSTORY_DIR, CONFIG_FILENAME);
+	const configPath = join(resolvedRoot, MYCOFLEET_DIR, CONFIG_FILENAME);
 
 	// Start with defaults, setting the project root
 	const defaults = structuredClone(DEFAULT_CONFIG);
@@ -592,7 +592,7 @@ export async function loadConfig(projectRoot: string): Promise<OverstoryConfig> 
 	let merged = deepMerge(
 		defaults as unknown as Record<string, unknown>,
 		parsed,
-	) as unknown as OverstoryConfig;
+	) as unknown as MycofleetConfig;
 
 	// Check for config.local.yaml (local overrides, gitignored)
 	merged = await mergeLocalConfig(resolvedRoot, merged);
