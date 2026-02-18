@@ -1,7 +1,7 @@
 /**
  * CLI command: mycofleet init [--force]
  *
- * Scaffolds the `.mycofleet/` directory in the current project with:
+ * Scaffolds the `.overstory/` directory in the current project with:
  * - config.yaml (serialized from DEFAULT_CONFIG)
  * - agent-manifest.json (starter agent definitions)
  * - hooks.json (central hooks config)
@@ -16,7 +16,7 @@ import { DEFAULT_CONFIG } from "../config.ts";
 import { ValidationError } from "../errors.ts";
 import type { AgentManifest, MycofleetConfig } from "../types.ts";
 
-const MYCOFLEET_DIR = ".mycofleet";
+const MYCOFLEET_DIR = ".overstory";
 
 /**
  * Detect the project name from git or fall back to directory name.
@@ -424,7 +424,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 }
 
 /**
- * Content for .mycofleet/.gitignore — runtime state that should not be tracked.
+ * Content for .overstory/.gitignore — runtime state that should not be tracked.
  * Uses wildcard+whitelist pattern: ignore everything, whitelist tracked files.
  * Auto-healed by mycofleet prime on each session start.
  * Config files (config.yaml, agent-manifest.json, hooks.json) remain tracked.
@@ -444,7 +444,7 @@ export const MYCOFLEET_GITIGNORE = `# Wildcard+whitelist: ignore everything, whi
 export const OVERSTORY_GITIGNORE = MYCOFLEET_GITIGNORE;
 
 /**
- * Write .mycofleet/.gitignore for runtime state files.
+ * Write .overstory/.gitignore for runtime state files.
  * Always overwrites to support --force reinit and auto-healing via prime.
  */
 export async function writeMycofleetGitignore(mycofleetPath: string): Promise<void> {
@@ -462,16 +462,16 @@ function printCreated(relativePath: string): void {
 /**
  * Entry point for `mycofleet init [--force]`.
  *
- * Scaffolds the .mycofleet/ directory structure in the current working directory.
+ * Scaffolds the .overstory/ directory structure in the current working directory.
  *
  * @param args - CLI arguments after "init" subcommand
  */
-const INIT_HELP = `mycofleet init — Initialize .mycofleet/ in current project
+const INIT_HELP = `mycofleet init — Initialize .overstory/ in current project
 
 Usage: mycofleet init [--force]
 
 Options:
-  --force      Reinitialize even if .mycofleet/ already exists
+  --force      Reinitialize even if .overstory/ already exists
   --help, -h   Show this help`;
 
 export async function initCommand(args: string[]): Promise<void> {
@@ -497,17 +497,17 @@ export async function initCommand(args: string[]): Promise<void> {
 		});
 	}
 
-	// 1. Check if .mycofleet/ already exists
+	// 1. Check if .overstory/ already exists
 	const existingDir = Bun.file(join(mycofleetPath, "config.yaml"));
 	if (await existingDir.exists()) {
 		if (!force) {
 			process.stdout.write(
-				"Warning: .mycofleet/ already initialized in this project.\n" +
+				"Warning: .overstory/ already initialized in this project.\n" +
 					"Use --force to reinitialize.\n",
 			);
 			return;
 		}
-		process.stdout.write("Reinitializing .mycofleet/ (--force)\n\n");
+		process.stdout.write("Reinitializing .overstory/ (--force)\n\n");
 	}
 
 	// 2. Detect project info
@@ -566,7 +566,7 @@ export async function initCommand(args: string[]): Promise<void> {
 	await Bun.write(hooksPath, hooksContent);
 	printCreated(`${MYCOFLEET_DIR}/hooks.json`);
 
-	// 7. Write .mycofleet/.gitignore for runtime state
+	// 7. Write .overstory/.gitignore for runtime state
 	await writeMycofleetGitignore(mycofleetPath);
 	printCreated(`${MYCOFLEET_DIR}/.gitignore`);
 
