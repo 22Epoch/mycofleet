@@ -372,7 +372,8 @@ MIT
 
 ---
 
-Acknowledgments:
+## Acknowledgments
+
 Upstream foundation: https://github.com/jayminwest/overstory
 / Beads (issue tracking concept referenced upstream): https://github.com/steveyegge/beads/
 
