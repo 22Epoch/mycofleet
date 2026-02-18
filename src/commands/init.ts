@@ -440,6 +440,9 @@ export const MYCOFLEET_GITIGNORE = `# Wildcard+whitelist: ignore everything, whi
 !agent-defs/
 `;
 
+// Back-compat for tests during rebrand:
+export const OVERSTORY_GITIGNORE = MYCOFLEET_GITIGNORE;
+
 /**
  * Write .mycofleet/.gitignore for runtime state files.
  * Always overwrites to support --force reinit and auto-healing via prime.
