@@ -346,9 +346,9 @@ function buildHooksJson(): string {
 							type: "command",
 							command: "sh",
 								args: [
-								  "-lc",
-								  // biome-ignore lint/suspicious/noTemplateCurlyInString: Shell parameter expansion is intentional in hook command.
-								  'if [ -n "$OVERSTORY_AGENT_NAME" ]; then mulch learn --since "${OVERSTORY_SESSION_START_ISO:-}" >/dev/null 2>&1 || true; fi',
+									"-lc",
+									// biome-ignore lint/suspicious/noTemplateCurlyInString: Shell parameter expansion is intentional in hook command.
+									'if [ -n "$OVERSTORY_AGENT_NAME" ]; then mulch learn --since "${OVERSTORY_SESSION_START_ISO:-}" >/dev/null 2>&1 || true; fi',
 								],
 						},
 					],
