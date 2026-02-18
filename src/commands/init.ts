@@ -346,8 +346,9 @@ function buildHooksJson(): string {
 							type: "command",
 							command: "sh",
 								args: [
-								"-lc",
-								'if [ -n "$OVERSTORY_AGENT_NAME" ]; then mulch learn --since "${OVERSTORY_SESSION_START_ISO:-}" >/dev/null 2>&1 || true; fi',
+								  "-lc",
+								  // biome-ignore lint/suspicious/noTemplateCurlyInString: shell parameter expansion, not a JS template
+								  'if [ -n "$OVERSTORY_AGENT_NAME" ]; then mulch learn --since "${OVERSTORY_SESSION_START_ISO:-}" >/dev/null 2>&1 || true; fi',
 								],
 						},
 					],
