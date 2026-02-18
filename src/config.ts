@@ -503,8 +503,11 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 		});
 		const exitCode = await proc.exited;
 		if (exitCode === 0) {
-			const gitCommonDir = (await new Response(proc.stdout).text()).trim();
+			const stdoutText =
+				proc.stdout ? await new Response(proc.stdout).text() : "";
+			const gitCommonDir = stdoutText.trim();
 			const absGitCommon = resolve(startDir, gitCommonDir);
+
 			// Main repo root is the parent of the .git directory
 			const mainRoot = dirname(absGitCommon);
 			// If mainRoot differs from startDir, we're in a worktree — resolve to canonical root
