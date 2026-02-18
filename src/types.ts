@@ -675,8 +675,3 @@ export interface InsightAnalysis {
 	toolProfile: ToolProfile;
 	fileProfile: FileProfile;
 }
-
-// === Rebrand aliases (keep full schema) ===
-// Use these during rename without losing the real config surface.
-export type MycofleetConfig = OverstoryConfig;
-export type MycoFleetConfig = OverstoryConfig;
