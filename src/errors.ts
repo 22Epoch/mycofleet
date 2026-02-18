@@ -12,14 +12,23 @@ export class MycofleetError extends Error {
 	}
 }
 
-// Back-compat alias (so any leftover imports still work during rebrand)
-export { MycofleetError as OverstoryError };
+/**
+ * Back-compat while rebranding:
+ * OverstoryError remains as a subclass so existing imports/usages continue to work.
+ * (Remove after full rename across the repo.)
+ */
+export class OverstoryError extends MycofleetError {
+	constructor(message: string, code: string, options?: ErrorOptions) {
+		super(message, code, options);
+		this.name = "OverstoryError";
+	}
+}
 
 /**
  * Raised when config loading or validation fails.
  * Examples: missing config file, invalid YAML, schema violations.
  */
-export class ConfigError extends MycofleetError {
+export class ConfigError extends OverstoryError {
 	readonly configPath: string | null;
 	readonly field: string | null;
 
@@ -42,7 +51,7 @@ export class ConfigError extends MycofleetError {
  * Raised for agent lifecycle issues.
  * Examples: spawn failure, agent not found, depth limit exceeded.
  */
-export class AgentError extends MycofleetError {
+export class AgentError extends OverstoryError {
 	readonly agentName: string | null;
 	readonly capability: string | null;
 
@@ -65,7 +74,7 @@ export class AgentError extends MycofleetError {
  * Raised when hierarchy constraints are violated.
  * Examples: coordinator spawning a builder directly instead of through a lead.
  */
-export class HierarchyError extends MycofleetError {
+export class HierarchyError extends OverstoryError {
 	readonly agentName: string | null;
 	readonly requestedCapability: string | null;
 
@@ -88,7 +97,7 @@ export class HierarchyError extends MycofleetError {
  * Raised when git worktree operations fail.
  * Examples: worktree creation, branch conflicts, cleanup failures.
  */
-export class WorktreeError extends MycofleetError {
+export class WorktreeError extends OverstoryError {
 	readonly worktreePath: string | null;
 	readonly branchName: string | null;
 
@@ -111,7 +120,7 @@ export class WorktreeError extends MycofleetError {
  * Raised when mail system operations fail.
  * Examples: DB access errors, invalid message format, delivery failures.
  */
-export class MailError extends MycofleetError {
+export class MailError extends OverstoryError {
 	readonly agentName: string | null;
 	readonly messageId: string | null;
 
@@ -134,7 +143,7 @@ export class MailError extends MycofleetError {
  * Raised when merge or conflict resolution fails.
  * Examples: unresolvable conflicts, merge queue errors, tier escalation failures.
  */
-export class MergeError extends MycofleetError {
+export class MergeError extends OverstoryError {
 	readonly branchName: string | null;
 	readonly conflictFiles: string[];
 
@@ -157,7 +166,7 @@ export class MergeError extends MycofleetError {
  * Raised when input validation fails.
  * Examples: invalid agent names, malformed beadIds, bad CLI arguments.
  */
-export class ValidationError extends MycofleetError {
+export class ValidationError extends OverstoryError {
 	readonly field: string | null;
 	readonly value: unknown;
 
@@ -180,7 +189,7 @@ export class ValidationError extends MycofleetError {
  * Raised when task group operations fail.
  * Examples: group not found, duplicate member, auto-close failures.
  */
-export class GroupError extends MycofleetError {
+export class GroupError extends OverstoryError {
 	readonly groupId: string | null;
 
 	constructor(
@@ -200,7 +209,7 @@ export class GroupError extends MycofleetError {
  * Raised when session lifecycle operations fail.
  * Examples: checkpoint save/restore failures, handoff failures.
  */
-export class LifecycleError extends MycofleetError {
+export class LifecycleError extends OverstoryError {
 	readonly agentName: string | null;
 	readonly sessionId: string | null;
 
