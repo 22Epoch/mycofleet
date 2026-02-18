@@ -12,6 +12,7 @@
  * - Persists across work batches
  */
 
+import { existsSync } from "node:fs";
 import { mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { deployHooks } from "../agents/hooks-deployer.ts";
@@ -25,11 +26,27 @@ import type { AgentSession } from "../types.ts";
 import { isProcessRunning } from "../watchdog/health.ts";
 import { createSession, isSessionAlive, killSession, sendKeys } from "../worktree/tmux.ts";
 
-/** Rebrand state directory. */
+/** State directories (rebrand in-progress). */
 const MYCOFLEET_DIR = ".mycofleet";
+const LEGACY_DIR = ".overstory";
 
 /** Default coordinator agent name. */
 const COORDINATOR_NAME = "coordinator";
+
+/**
+ * Resolve which state directory to use for this project root.
+ * Prefer .mycofleet when present, otherwise fall back to .overstory.
+ * Default to .overstory (matches existing tests/fixtures) if neither exists yet.
+ */
+function resolveStateDir(projectRoot: string): string {
+	const newDir = join(projectRoot, MYCOFLEET_DIR);
+	const legacyDir = join(projectRoot, LEGACY_DIR);
+
+	if (existsSync(newDir)) return newDir;
+	if (existsSync(legacyDir)) return legacyDir;
+
+	return legacyDir;
+}
 
 /**
  * Build the tmux session name for the coordinator.
@@ -68,8 +85,8 @@ export interface CoordinatorDeps {
  * Read the PID from the watchdog PID file.
  * Returns null if the file doesn't exist or can't be parsed.
  */
-async function readWatchdogPid(projectRoot: string): Promise<number | null> {
-	const pidFilePath = join(projectRoot, MYCOFLEET_DIR, "watchdog.pid");
+async function readWatchdogPid(stateDir: string): Promise<number | null> {
+	const pidFilePath = join(stateDir, "watchdog.pid");
 	const file = Bun.file(pidFilePath);
 	const exists = await file.exists();
 	if (!exists) {
@@ -79,9 +96,7 @@ async function readWatchdogPid(projectRoot: string): Promise<number | null> {
 	try {
 		const text = await file.text();
 		const pid = Number.parseInt(text.trim(), 10);
-		if (Number.isNaN(pid) || pid <= 0) {
-			return null;
-		}
+		if (Number.isNaN(pid) || pid <= 0) return null;
 		return pid;
 	} catch {
 		return null;
@@ -91,8 +106,8 @@ async function readWatchdogPid(projectRoot: string): Promise<number | null> {
 /**
  * Remove the watchdog PID file.
  */
-async function removeWatchdogPid(projectRoot: string): Promise<void> {
-	const pidFilePath = join(projectRoot, MYCOFLEET_DIR, "watchdog.pid");
+async function removeWatchdogPid(stateDir: string): Promise<void> {
+	const pidFilePath = join(stateDir, "watchdog.pid");
 	try {
 		await unlink(pidFilePath);
 	} catch {
@@ -104,18 +119,21 @@ async function removeWatchdogPid(projectRoot: string): Promise<void> {
  * Default watchdog implementation for production use.
  * Starts/stops the watchdog daemon via `mycofleet watch --background`.
  */
-function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps["_watchdog"]> {
+function createDefaultWatchdog(
+	projectRoot: string,
+	stateDir: string,
+): NonNullable<CoordinatorDeps["_watchdog"]> {
 	return {
 		async start(): Promise<{ pid: number } | null> {
 			// Check if watchdog is already running
-			const existingPid = await readWatchdogPid(projectRoot);
+			const existingPid = await readWatchdogPid(stateDir);
 			if (existingPid !== null && isProcessRunning(existingPid)) {
 				return null; // Already running
 			}
 
 			// Clean up stale PID file
 			if (existingPid !== null) {
-				await removeWatchdogPid(projectRoot);
+				await removeWatchdogPid(stateDir);
 			}
 
 			// Start watchdog in background
@@ -131,7 +149,7 @@ function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps
 			}
 
 			// Read the PID file that was written by the background process
-			const pid = await readWatchdogPid(projectRoot);
+			const pid = await readWatchdogPid(stateDir);
 			if (pid === null) {
 				return null; // PID file wasn't created
 			}
@@ -140,7 +158,7 @@ function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps
 		},
 
 		async stop(): Promise<boolean> {
-			const pid = await readWatchdogPid(projectRoot);
+			const pid = await readWatchdogPid(stateDir);
 			if (pid === null) {
 				return false; // No PID file
 			}
@@ -148,7 +166,7 @@ function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps
 			// Check if process is running
 			if (!isProcessRunning(pid)) {
 				// Process is dead, clean up PID file
-				await removeWatchdogPid(projectRoot);
+				await removeWatchdogPid(stateDir);
 				return false;
 			}
 
@@ -160,12 +178,12 @@ function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps
 			}
 
 			// Remove PID file
-			await removeWatchdogPid(projectRoot);
+			await removeWatchdogPid(stateDir);
 			return true;
 		},
 
 		async isRunning(): Promise<boolean> {
-			const pid = await readWatchdogPid(projectRoot);
+			const pid = await readWatchdogPid(stateDir);
 			if (pid === null) {
 				return false;
 			}
@@ -260,13 +278,13 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
-	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
+	const stateDir = resolveStateDir(projectRoot);
+	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot, stateDir);
 	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 	const tmuxSession = coordinatorTmuxSession(config.project.name);
 
 	// Check for existing coordinator
-	const mycofleetDir = join(projectRoot, MYCOFLEET_DIR);
-	const { store } = openSessionStore(mycofleetDir);
+	const { store } = openSessionStore(stateDir);
 	try {
 		const existing = store.getByName(COORDINATOR_NAME);
 
@@ -296,7 +314,7 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 		await deployHooks(projectRoot, COORDINATOR_NAME, "coordinator");
 
 		// Create coordinator identity if first run
-		const identityBaseDir = join(projectRoot, MYCOFLEET_DIR, "agents");
+		const identityBaseDir = join(stateDir, "agents");
 		await mkdir(identityBaseDir, { recursive: true });
 		const existingIdentity = await loadIdentity(identityBaseDir, COORDINATOR_NAME);
 		if (!existingIdentity) {
@@ -319,7 +337,7 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 		const model = resolveModel(config, manifest, "coordinator", "opus");
 
 		// Spawn tmux session at project root with Claude Code (interactive mode).
-		const agentDefPath = join(projectRoot, MYCOFLEET_DIR, "agent-defs", "coordinator.md");
+		const agentDefPath = join(stateDir, "agent-defs", "coordinator.md");
 		const agentDefFile = Bun.file(agentDefPath);
 		let claudeCmd = `claude --model ${model} --dangerously-skip-permissions`;
 		if (await agentDefFile.exists()) {
@@ -423,11 +441,11 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
-	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
+	const stateDir = resolveStateDir(projectRoot);
+	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot, stateDir);
 	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 
-	const mycofleetDir = join(projectRoot, MYCOFLEET_DIR);
-	const { store } = openSessionStore(mycofleetDir);
+	const { store } = openSessionStore(stateDir);
 	try {
 		const session = store.getByName(COORDINATOR_NAME);
 
@@ -456,12 +474,12 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 		// Auto-complete the current run
 		let runCompleted = false;
 		try {
-			const currentRunPath = join(mycofleetDir, "current-run.txt");
+			const currentRunPath = join(stateDir, "current-run.txt");
 			const currentRunFile = Bun.file(currentRunPath);
 			if (await currentRunFile.exists()) {
 				const runId = (await currentRunFile.text()).trim();
 				if (runId.length > 0) {
-					const runStore = createRunStore(join(mycofleetDir, "sessions.db"));
+					const runStore = createRunStore(join(stateDir, "sessions.db"));
 					try {
 						runStore.completeRun(runId, "completed");
 						runCompleted = true;
@@ -507,11 +525,11 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 	const cwd = process.cwd();
 	const config = await loadConfig(cwd);
 	const projectRoot = config.project.root;
-	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
+	const stateDir = resolveStateDir(projectRoot);
+	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot, stateDir);
 	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 
-	const mycofleetDir = join(projectRoot, MYCOFLEET_DIR);
-	const { store } = openSessionStore(mycofleetDir);
+	const { store } = openSessionStore(stateDir);
 	try {
 		const session = store.getByName(COORDINATOR_NAME);
 		const watchdogRunning = await watchdog.isRunning();
