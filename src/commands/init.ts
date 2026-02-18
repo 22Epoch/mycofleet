@@ -1,7 +1,7 @@
 /**
- * CLI command: overstory init [--force]
+ * CLI command: mycofleet init [--force]
  *
- * Scaffolds the `.overstory/` directory in the current project with:
+ * Scaffolds the `.mycofleet/` directory in the current project with:
  * - config.yaml (serialized from DEFAULT_CONFIG)
  * - agent-manifest.json (starter agent definitions)
  * - hooks.json (central hooks config)
@@ -14,9 +14,9 @@ import { mkdir, readdir } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { DEFAULT_CONFIG } from "../config.ts";
 import { ValidationError } from "../errors.ts";
-import type { AgentManifest, OverstoryConfig } from "../types.ts";
+import type { AgentManifest, MycofleetConfig } from "../types.ts";
 
-const OVERSTORY_DIR = ".overstory";
+const MYCOFLEET_DIR = ".mycofleet";
 
 /**
  * Detect the project name from git or fall back to directory name.
@@ -90,15 +90,15 @@ async function detectCanonicalBranch(root: string): Promise<string> {
 }
 
 /**
- * Serialize an OverstoryConfig to YAML format.
+ * Serialize an MycofleetConfig to YAML format.
  *
  * Handles nested objects with indentation, scalar values,
  * arrays with `- item` syntax, and empty arrays as `[]`.
  */
-function serializeConfigToYaml(config: OverstoryConfig): string {
+function serializeConfigToYaml(config: MycofleetConfig): string {
 	const lines: string[] = [];
-	lines.push("# Overstory configuration");
-	lines.push("# See: https://github.com/overstory/overstory");
+	lines.push("# Mycofleet configuration");
+	lines.push("# See: https://github.com/mycofleet/mycofleet");
 	lines.push("");
 
 	serializeObject(config as unknown as Record<string, unknown>, lines, 0);
@@ -282,7 +282,7 @@ function buildHooksJson(): string {
 					hooks: [
 						{
 							type: "command",
-							command: "overstory prime --agent orchestrator",
+							command: "mycofleet prime --agent orchestrator",
 						},
 					],
 				},
@@ -293,7 +293,7 @@ function buildHooksJson(): string {
 					hooks: [
 						{
 							type: "command",
-							command: "overstory mail check --inject --agent orchestrator",
+							command: "mycofleet mail check --inject --agent orchestrator",
 						},
 					],
 				},
@@ -305,7 +305,7 @@ function buildHooksJson(): string {
 						{
 							type: "command",
 							command:
-								'read -r INPUT; CMD=$(echo "$INPUT" | sed \'s/.*"command": *"\\([^"]*\\)".*/\\1/\'); if echo "$CMD" | grep -qE \'\\bgit\\s+push\\b\'; then echo \'{"decision":"block","reason":"git push is blocked by overstory — merge locally, push manually when ready"}\'; exit 0; fi;',
+								'read -r INPUT; CMD=$(echo "$INPUT" | sed \'s/.*"command": *"\\([^"]*\\)".*/\\1/\'); if echo "$CMD" | grep -qE \'\\bgit\\s+push\\b\'; then echo \'{"decision":"block","reason":"git push is blocked by mycofleet — merge locally, push manually when ready"}\'; exit 0; fi;',
 						},
 					],
 				},
@@ -314,7 +314,7 @@ function buildHooksJson(): string {
 					hooks: [
 						{
 							type: "command",
-							command: `${toolNameExtract} overstory log tool-start --agent orchestrator --tool-name "$TOOL_NAME"`,
+							command: `${toolNameExtract} mycofleet log tool-start --agent orchestrator --tool-name "$TOOL_NAME"`,
 						},
 					],
 				},
@@ -325,7 +325,7 @@ function buildHooksJson(): string {
 					hooks: [
 						{
 							type: "command",
-							command: `${toolNameExtract} overstory log tool-end --agent orchestrator --tool-name "$TOOL_NAME"`,
+							command: `${toolNameExtract} mycofleet log tool-end --agent orchestrator --tool-name "$TOOL_NAME"`,
 						},
 					],
 				},
@@ -336,7 +336,7 @@ function buildHooksJson(): string {
 					hooks: [
 						{
 							type: "command",
-							command: "overstory log session-end --agent orchestrator",
+							command: "mycofleet log session-end --agent orchestrator",
 						},
 						{
 							type: "command",
@@ -351,7 +351,7 @@ function buildHooksJson(): string {
 					hooks: [
 						{
 							type: "command",
-							command: "overstory prime --agent orchestrator --compact",
+							command: "mycofleet prime --agent orchestrator --compact",
 						},
 					],
 				},
@@ -368,11 +368,11 @@ function buildHooksJson(): string {
  * Opens each DB, enables WAL mode, and re-runs CREATE TABLE/INDEX IF NOT EXISTS
  * to apply any schema additions without losing existing data.
  */
-async function migrateExistingDatabases(overstoryPath: string): Promise<string[]> {
+async function migrateExistingDatabases(mycofleetPath: string): Promise<string[]> {
 	const migrated: string[] = [];
 
 	// Migrate mail.db
-	const mailDbPath = join(overstoryPath, "mail.db");
+	const mailDbPath = join(mycofleetPath, "mail.db");
 	if (await Bun.file(mailDbPath).exists()) {
 		const db = new Database(mailDbPath);
 		db.exec("PRAGMA journal_mode = WAL");
@@ -398,7 +398,7 @@ CREATE INDEX IF NOT EXISTS idx_thread ON messages(thread_id)`);
 	}
 
 	// Migrate metrics.db
-	const metricsDbPath = join(overstoryPath, "metrics.db");
+	const metricsDbPath = join(mycofleetPath, "metrics.db");
 	if (await Bun.file(metricsDbPath).exists()) {
 		const db = new Database(metricsDbPath);
 		db.exec("PRAGMA journal_mode = WAL");
@@ -424,13 +424,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 }
 
 /**
- * Content for .overstory/.gitignore — runtime state that should not be tracked.
+ * Content for .mycofleet/.gitignore — runtime state that should not be tracked.
  * Uses wildcard+whitelist pattern: ignore everything, whitelist tracked files.
- * Auto-healed by overstory prime on each session start.
+ * Auto-healed by mycofleet prime on each session start.
  * Config files (config.yaml, agent-manifest.json, hooks.json) remain tracked.
  */
-export const OVERSTORY_GITIGNORE = `# Wildcard+whitelist: ignore everything, whitelist tracked files
-# Auto-healed by overstory prime on each session start
+export const MYCOFLEET_GITIGNORE = `# Wildcard+whitelist: ignore everything, whitelist tracked files
+# Auto-healed by mycofleet prime on each session start
 *
 !.gitignore
 !config.yaml
@@ -441,12 +441,12 @@ export const OVERSTORY_GITIGNORE = `# Wildcard+whitelist: ignore everything, whi
 `;
 
 /**
- * Write .overstory/.gitignore for runtime state files.
+ * Write .mycofleet/.gitignore for runtime state files.
  * Always overwrites to support --force reinit and auto-healing via prime.
  */
-export async function writeOverstoryGitignore(overstoryPath: string): Promise<void> {
-	const gitignorePath = join(overstoryPath, ".gitignore");
-	await Bun.write(gitignorePath, OVERSTORY_GITIGNORE);
+export async function writeMycofleetGitignore(mycofleetPath: string): Promise<void> {
+	const gitignorePath = join(mycofleetPath, ".gitignore");
+	await Bun.write(gitignorePath, MYCOFLEET_GITIGNORE);
 }
 
 /**
@@ -457,18 +457,18 @@ function printCreated(relativePath: string): void {
 }
 
 /**
- * Entry point for `overstory init [--force]`.
+ * Entry point for `mycofleet init [--force]`.
  *
- * Scaffolds the .overstory/ directory structure in the current working directory.
+ * Scaffolds the .mycofleet/ directory structure in the current working directory.
  *
  * @param args - CLI arguments after "init" subcommand
  */
-const INIT_HELP = `overstory init — Initialize .overstory/ in current project
+const INIT_HELP = `mycofleet init — Initialize .mycofleet/ in current project
 
-Usage: overstory init [--force]
+Usage: mycofleet init [--force]
 
 Options:
-  --force      Reinitialize even if .overstory/ already exists
+  --force      Reinitialize even if .mycofleet/ already exists
   --help, -h   Show this help`;
 
 export async function initCommand(args: string[]): Promise<void> {
@@ -479,7 +479,7 @@ export async function initCommand(args: string[]): Promise<void> {
 
 	const force = args.includes("--force");
 	const projectRoot = process.cwd();
-	const overstoryPath = join(projectRoot, OVERSTORY_DIR);
+	const mycofleetPath = join(projectRoot, MYCOFLEET_DIR);
 
 	// 0. Verify we're inside a git repository
 	const gitCheck = Bun.spawn(["git", "rev-parse", "--is-inside-work-tree"], {
@@ -489,38 +489,38 @@ export async function initCommand(args: string[]): Promise<void> {
 	});
 	const gitCheckExit = await gitCheck.exited;
 	if (gitCheckExit !== 0) {
-		throw new ValidationError("overstory requires a git repository. Run 'git init' first.", {
+		throw new ValidationError("mycofleet requires a git repository. Run 'git init' first.", {
 			field: "git",
 		});
 	}
 
-	// 1. Check if .overstory/ already exists
-	const existingDir = Bun.file(join(overstoryPath, "config.yaml"));
+	// 1. Check if .mycofleet/ already exists
+	const existingDir = Bun.file(join(mycofleetPath, "config.yaml"));
 	if (await existingDir.exists()) {
 		if (!force) {
 			process.stdout.write(
-				"Warning: .overstory/ already initialized in this project.\n" +
+				"Warning: .mycofleet/ already initialized in this project.\n" +
 					"Use --force to reinitialize.\n",
 			);
 			return;
 		}
-		process.stdout.write("Reinitializing .overstory/ (--force)\n\n");
+		process.stdout.write("Reinitializing .mycofleet/ (--force)\n\n");
 	}
 
 	// 2. Detect project info
 	const projectName = await detectProjectName(projectRoot);
 	const canonicalBranch = await detectCanonicalBranch(projectRoot);
 
-	process.stdout.write(`Initializing overstory for "${projectName}"...\n\n`);
+	process.stdout.write(`Initializing mycofleet for "${projectName}"...\n\n`);
 
 	// 3. Create directory structure
 	const dirs = [
-		OVERSTORY_DIR,
-		join(OVERSTORY_DIR, "agents"),
-		join(OVERSTORY_DIR, "agent-defs"),
-		join(OVERSTORY_DIR, "worktrees"),
-		join(OVERSTORY_DIR, "specs"),
-		join(OVERSTORY_DIR, "logs"),
+		MYCOFLEET_DIR,
+		join(MYCOFLEET_DIR, "agents"),
+		join(MYCOFLEET_DIR, "agent-defs"),
+		join(MYCOFLEET_DIR, "worktrees"),
+		join(MYCOFLEET_DIR, "specs"),
+		join(MYCOFLEET_DIR, "logs"),
 	];
 
 	for (const dir of dirs) {
@@ -528,16 +528,16 @@ export async function initCommand(args: string[]): Promise<void> {
 		printCreated(`${dir}/`);
 	}
 
-	// 3b. Deploy agent definition .md files from overstory install directory
-	const overstoryAgentsDir = join(import.meta.dir, "..", "..", "agents");
-	const agentDefsTarget = join(overstoryPath, "agent-defs");
-	const agentDefFiles = await readdir(overstoryAgentsDir);
+	// 3b. Deploy agent definition .md files from mycofleet install directory
+	const mycofleetAgentsDir = join(import.meta.dir, "..", "..", "agents");
+	const agentDefsTarget = join(mycofleetPath, "agent-defs");
+	const agentDefFiles = await readdir(mycofleetAgentsDir);
 	for (const fileName of agentDefFiles) {
 		if (!fileName.endsWith(".md")) continue;
-		const source = Bun.file(join(overstoryAgentsDir, fileName));
+		const source = Bun.file(join(mycofleetAgentsDir, fileName));
 		const content = await source.text();
 		await Bun.write(join(agentDefsTarget, fileName), content);
-		printCreated(`${OVERSTORY_DIR}/agent-defs/${fileName}`);
+		printCreated(`${MYCOFLEET_DIR}/agent-defs/${fileName}`);
 	}
 
 	// 4. Write config.yaml
@@ -547,35 +547,35 @@ export async function initCommand(args: string[]): Promise<void> {
 	config.project.canonicalBranch = canonicalBranch;
 
 	const configYaml = serializeConfigToYaml(config);
-	const configPath = join(overstoryPath, "config.yaml");
+	const configPath = join(mycofleetPath, "config.yaml");
 	await Bun.write(configPath, configYaml);
-	printCreated(`${OVERSTORY_DIR}/config.yaml`);
+	printCreated(`${MYCOFLEET_DIR}/config.yaml`);
 
 	// 5. Write agent-manifest.json
 	const manifest = buildAgentManifest();
-	const manifestPath = join(overstoryPath, "agent-manifest.json");
+	const manifestPath = join(mycofleetPath, "agent-manifest.json");
 	await Bun.write(manifestPath, `${JSON.stringify(manifest, null, "\t")}\n`);
-	printCreated(`${OVERSTORY_DIR}/agent-manifest.json`);
+	printCreated(`${MYCOFLEET_DIR}/agent-manifest.json`);
 
 	// 6. Write hooks.json
 	const hooksContent = buildHooksJson();
-	const hooksPath = join(overstoryPath, "hooks.json");
+	const hooksPath = join(mycofleetPath, "hooks.json");
 	await Bun.write(hooksPath, hooksContent);
-	printCreated(`${OVERSTORY_DIR}/hooks.json`);
+	printCreated(`${MYCOFLEET_DIR}/hooks.json`);
 
-	// 7. Write .overstory/.gitignore for runtime state
-	await writeOverstoryGitignore(overstoryPath);
-	printCreated(`${OVERSTORY_DIR}/.gitignore`);
+	// 7. Write .mycofleet/.gitignore for runtime state
+	await writeMycofleetGitignore(mycofleetPath);
+	printCreated(`${MYCOFLEET_DIR}/.gitignore`);
 
 	// 8. Migrate existing SQLite databases on --force reinit
 	if (force) {
-		const migrated = await migrateExistingDatabases(overstoryPath);
+		const migrated = await migrateExistingDatabases(mycofleetPath);
 		for (const dbName of migrated) {
-			process.stdout.write(`  \u2713 Migrated ${OVERSTORY_DIR}/${dbName} (schema validated)\n`);
+			process.stdout.write(`  \u2713 Migrated ${MYCOFLEET_DIR}/${dbName} (schema validated)\n`);
 		}
 	}
 
 	process.stdout.write("\nDone.\n");
-	process.stdout.write("  Next: run `overstory hooks install` to enable Claude Code hooks.\n");
-	process.stdout.write("  Then: run `overstory status` to see the current state.\n");
+	process.stdout.write("  Next: run `mycofleet hooks install` to enable Claude Code hooks.\n");
+	process.stdout.write("  Then: run `mycofleet status` to see the current state.\n");
 }
