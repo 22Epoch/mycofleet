@@ -524,7 +524,9 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 			session.state === "zombie"
 		) {
 			if (json) {
-				process.stdout.write(`${JSON.stringify({ running: false, watchdogRunning, monitorRunning })}\n`);
+				process.stdout.write(
+					`${JSON.stringify({ running: false, watchdogRunning, monitorRunning })}\n`,
+				);
 			} else {
 				process.stdout.write("Coordinator is not running\n");
 				if (watchdogRunning) process.stdout.write("Watchdog: running\n");
