@@ -44,6 +44,9 @@ export interface OverstoryConfig {
 	};
 }
 
+export type MycofleetConfig = OverstoryConfig;
+export type MycoFleetConfig = OverstoryConfig;
+
 // === Agent Manifest ===
 
 export interface AgentManifest {
@@ -677,4 +680,3 @@ export interface InsightAnalysis {
 // Use these during rename without losing the real config surface.
 export type MycofleetConfig = OverstoryConfig;
 export type MycoFleetConfig = OverstoryConfig;
-
