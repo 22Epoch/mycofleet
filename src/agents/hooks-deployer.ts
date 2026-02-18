@@ -485,7 +485,7 @@ export function getCapabilityGuards(capability: string): HookEntry[] {
  * @throws {AgentError} If the template is not found or the write fails
  */
 export async function deployHooks(
-	worktreePath: string,
+	projectRoot: string,
 	agentName: string,
 	capability = "builder",
 ): Promise<void> {
