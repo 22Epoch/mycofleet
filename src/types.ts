@@ -672,3 +672,10 @@ export interface InsightAnalysis {
 	toolProfile: ToolProfile;
 	fileProfile: FileProfile;
 }
+
+// === Rebrand aliases ===
+// Keep upstream config as the source of truth while rebranding.
+export type MycofleetConfig = OverstoryConfig;
+
+// Optional alias in case any file uses the branding-cased name.
+export type MycoFleetConfig = MycofleetConfig;
