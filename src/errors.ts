@@ -1,14 +1,26 @@
 /**
- * Base error class for all Overstory errors.
+ * Base error class for all MycoFleet errors.
  * Includes a machine-readable `code` field for programmatic handling.
  */
-export class OverstoryError extends Error {
+export class MycofleetError extends Error {
 	readonly code: string;
 
 	constructor(message: string, code: string, options?: ErrorOptions) {
 		super(message, options);
-		this.name = "OverstoryError";
+		this.name = "MycofleetError";
 		this.code = code;
+	}
+}
+
+/**
+ * Back-compat while rebranding:
+ * OverstoryError remains as a subclass so existing imports/usages continue to work.
+ * (Remove after full rename across the repo.)
+ */
+export class OverstoryError extends MycofleetError {
+	constructor(message: string, code: string, options?: ErrorOptions) {
+		super(message, code, options);
+		this.name = "OverstoryError";
 	}
 }
 

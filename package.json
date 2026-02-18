@@ -1,30 +1,31 @@
 {
-	"name": "overstory",
-	"version": "0.5.4",
-	"description": "Multi-agent orchestration for Claude Code — spawn worker agents in git worktrees via tmux, coordinate through SQLite mail, merge with tiered conflict resolution",
-	"author": "Jaymin West",
+	"name": "mycofleet",
+	"version": "0.1.0",
+	"description": "MycoFleet — multi-agent swarm orchestration (standalone derivative of Overstory, MIT)",
+	"author": "Twenty Two Epoch LLC",
 	"license": "MIT",
 	"type": "module",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/jayminwest/overstory.git"
+		"url": "https://github.com/22Epoch/mycofleet.git"
 	},
-	"homepage": "https://github.com/jayminwest/overstory",
+	"homepage": "https://github.com/22Epoch/mycofleet",
 	"keywords": [
 		"ai",
 		"agents",
 		"orchestration",
-		"claude-code",
 		"multi-agent",
 		"swarm",
 		"cli",
-		"developer-tools"
+		"developer-tools",
+		"mycelium",
+		"fungi"
 	],
 	"engines": {
 		"bun": ">=1.0"
 	},
 	"bin": {
-		"overstory": "./src/index.ts"
+		"mycofleet": "./src/index.ts"
 	},
 	"scripts": {
 		"test": "bun test",

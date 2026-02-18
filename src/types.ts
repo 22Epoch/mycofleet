@@ -44,6 +44,9 @@ export interface OverstoryConfig {
 	};
 }
 
+export type MycofleetConfig = OverstoryConfig;
+export type MycoFleetConfig = OverstoryConfig;
+
 // === Agent Manifest ===
 
 export interface AgentManifest {

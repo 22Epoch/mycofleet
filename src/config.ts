@@ -52,7 +52,7 @@ export const DEFAULT_CONFIG: MycofleetConfig = {
 
 const CONFIG_FILENAME = "config.yaml";
 const CONFIG_LOCAL_FILENAME = "config.local.yaml";
-const MYCOFLEET_DIR = ".mycofleet";
+const MYCOFLEET_DIR = ".overstory";
 
 /**
  * Minimal YAML parser that handles the config structure.
@@ -503,7 +503,8 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 		});
 		const exitCode = await proc.exited;
 		if (exitCode === 0) {
-			const gitCommonDir = (await new Response(proc.stdout).text()).trim();
+			const stdoutText = proc.stdout ? await new Response(proc.stdout).text() : "";
+			const gitCommonDir = stdoutText.trim();
 			const absGitCommon = resolve(startDir, gitCommonDir);
 			// Main repo root is the parent of the .git directory
 			const mainRoot = dirname(absGitCommon);
@@ -517,7 +518,7 @@ export async function resolveProjectRoot(startDir: string): Promise<string> {
 	}
 
 	// Not inside a worktree (or git not available).
-	// Check if .mycofleet/config.yaml exists at startDir.
+	// Check if .overstory/config.yaml exists at startDir.
 	if (existsSync(join(startDir, MYCOFLEET_DIR, CONFIG_FILENAME))) {
 		return startDir;
 	}

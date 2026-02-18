@@ -1,5 +1,5 @@
 /**
- * CLI command: overstory nudge <agent-name> [message]
+ * CLI command: mycofleet nudge <agent-name> [message]
  *
  * Sends a text nudge to an agent's interactive Claude Code session via
  * tmux send-keys. Used to notify agents of new mail or relay urgent
@@ -62,12 +62,12 @@ function getPositionalArgs(args: string[]): string[] {
 /**
  * Load the orchestrator's registered tmux session name.
  *
- * Written by `overstory prime` at SessionStart when the orchestrator
+ * Written by `mycofleet prime` at SessionStart when the orchestrator
  * is running inside tmux. Enables agents to nudge the orchestrator
  * even though it's not tracked in the SessionStore.
  */
 async function loadOrchestratorTmuxSession(projectRoot: string): Promise<string | null> {
-	const regPath = join(projectRoot, ".overstory", "orchestrator-tmux.json");
+	const regPath = join(projectRoot, ".mycofleet", "orchestrator-tmux.json");
 	const file = Bun.file(regPath);
 	if (!(await file.exists())) {
 		return null;
@@ -86,14 +86,14 @@ async function loadOrchestratorTmuxSession(projectRoot: string): Promise<string 
  *
  * For regular agents, looks up the SessionStore.
  * For "orchestrator", falls back to the orchestrator-tmux.json registration
- * file written by `overstory prime`.
+ * file written by `mycofleet prime`.
  */
 async function resolveTargetSession(
 	projectRoot: string,
 	agentName: string,
 ): Promise<string | null> {
-	const overstoryDir = join(projectRoot, ".overstory");
-	const { store } = openSessionStore(overstoryDir);
+	const mycofleetDir = join(projectRoot, ".mycofleet");
+	const { store } = openSessionStore(mycofleetDir);
 	try {
 		const session = store.getByName(agentName);
 		if (session && session.state !== "zombie" && session.state !== "completed") {
@@ -164,7 +164,7 @@ async function sendNudgeWithRetry(tmuxSession: string, message: string): Promise
 			await sendKeys(tmuxSession, message);
 			// Follow-up Enter after a short delay to ensure submission.
 			// Claude Code's TUI may consume the first Enter during re-render/focus
-			// events, leaving text visible but unsubmitted (overstory-t62v).
+			// events, leaving text visible but unsubmitted (mycofleet-t62v).
 			// Same workaround as sling.ts and coordinator.ts.
 			await Bun.sleep(500);
 			await sendKeys(tmuxSession, "");
@@ -181,8 +181,8 @@ async function sendNudgeWithRetry(tmuxSession: string, message: string): Promise
 /**
  * Read the current run ID from current-run.txt, or null if no active run.
  */
-async function readCurrentRunId(overstoryDir: string): Promise<string | null> {
-	const path = join(overstoryDir, "current-run.txt");
+async function readCurrentRunId(mycofleetDir: string): Promise<string | null> {
+	const path = join(mycofleetDir, "current-run.txt");
 	const file = Bun.file(path);
 	if (!(await file.exists())) {
 		return null;
@@ -257,7 +257,7 @@ export async function nudgeAgent(
 		// Check debounce (unless forced)
 		let debounced = false;
 		if (!force) {
-			const statePath = join(projectRoot, ".overstory", "nudge-state.json");
+			const statePath = join(projectRoot, ".mycofleet", "nudge-state.json");
 			debounced = await isDebounced(statePath, agentName);
 		}
 
@@ -277,7 +277,7 @@ export async function nudgeAgent(
 
 				if (delivered) {
 					// Record nudge for debounce tracking
-					const statePath = join(projectRoot, ".overstory", "nudge-state.json");
+					const statePath = join(projectRoot, ".mycofleet", "nudge-state.json");
 					await recordNudge(statePath, agentName);
 					result = { delivered: true };
 				} else {
@@ -292,11 +292,11 @@ export async function nudgeAgent(
 
 	// Record event to EventStore (fire-and-forget)
 	try {
-		const overstoryDir = join(projectRoot, ".overstory");
-		const eventsDbPath = join(overstoryDir, "events.db");
+		const mycofleetDir = join(projectRoot, ".mycofleet");
+		const eventsDbPath = join(mycofleetDir, "events.db");
 		const eventStore = createEventStore(eventsDbPath);
 		try {
-			const runId = await readCurrentRunId(overstoryDir);
+			const runId = await readCurrentRunId(mycofleetDir);
 			recordNudgeEvent(eventStore, {
 				runId,
 				agentName,
@@ -315,11 +315,11 @@ export async function nudgeAgent(
 }
 
 /**
- * Entry point for `overstory nudge <agent-name> [message]`.
+ * Entry point for `mycofleet nudge <agent-name> [message]`.
  */
-const NUDGE_HELP = `overstory nudge — Send a text nudge to an agent
+const NUDGE_HELP = `mycofleet nudge — Send a text nudge to an agent
 
-Usage: overstory nudge <agent-name> [message]
+Usage: mycofleet nudge <agent-name> [message]
 
 Arguments:
   <agent-name>           Name of the agent to nudge
@@ -340,7 +340,7 @@ export async function nudgeCommand(args: string[]): Promise<void> {
 	const positional = getPositionalArgs(args);
 	const agentName = positional[0];
 	if (!agentName || agentName.trim().length === 0) {
-		throw new ValidationError("Agent name is required: overstory nudge <agent-name> [message]", {
+		throw new ValidationError("Agent name is required: mycofleet nudge <agent-name> [message]", {
 			field: "agentName",
 		});
 	}

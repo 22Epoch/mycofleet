@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 
 /**
- * Overstory CLI — main entry point and command router.
+ * Mycofleet CLI — main entry point and command router.
  *
  * Routes subcommands to their respective handlers in src/commands/.
- * Usage: overstory <command> [args...]
+ * Usage: mycofleet <command> [args...]
  */
 
 import { agentsCommand } from "./commands/agents.ts";
@@ -37,18 +37,18 @@ import { supervisorCommand } from "./commands/supervisor.ts";
 import { traceCommand } from "./commands/trace.ts";
 import { watchCommand } from "./commands/watch.ts";
 import { worktreeCommand } from "./commands/worktree.ts";
-import { OverstoryError, WorktreeError } from "./errors.ts";
+import { MycofleetError, WorktreeError } from "./errors.ts";
 import { setQuiet } from "./logging/color.ts";
 
 const VERSION = "0.5.4";
 
-const HELP = `overstory v${VERSION} — Multi-agent orchestration for Claude Code
+const HELP = `mycofleet v${VERSION} — Multi-agent orchestration for Claude Code
 
-Usage: overstory <command> [args...]
+Usage: mycofleet <command> [args...]
 
 Commands:
   agents <sub>            Discover and query agents (discover)
-  init                    Initialize .overstory/ in current project
+  init                    Initialize .mycofleet/ in current project
   sling <task-id>         Spawn a worker agent
   spec <sub>              Manage task specs (write)
   prime                   Load context for orchestrator/agent
@@ -64,7 +64,7 @@ Commands:
   nudge <agent> [msg]     Send a text nudge to an agent
   group <sub>             Task groups (create/status/add/remove/list)
   clean                   Wipe runtime state (nuclear cleanup)
-  doctor                  Run health checks on overstory setup
+  doctor                  Run health checks on mycofleet setup
   worktree <sub>          Manage worktrees (list/clean)
   log <event>             Log a hook event
   logs [options]          Query NDJSON logs across agents
@@ -83,7 +83,7 @@ Options:
   --quiet, -q             Suppress non-error output
   --completions <shell>   Generate shell completions (bash, zsh, fish)
 
-Run 'overstory <command> --help' for command-specific help.`;
+Run 'mycofleet <command> --help' for command-specific help.`;
 
 const COMMANDS = [
 	"agents",
@@ -175,7 +175,7 @@ async function main(): Promise<void> {
 	}
 
 	if (command === "--version" || command === "-v") {
-		process.stdout.write(`overstory v${VERSION}\n`);
+		process.stdout.write(`mycofleet v${VERSION}\n`);
 		return;
 	}
 
@@ -282,7 +282,7 @@ async function main(): Promise<void> {
 			if (suggestion) {
 				process.stderr.write(`Did you mean '${suggestion}'?\n`);
 			}
-			process.stderr.write(`Run 'overstory --help' for usage.\n`);
+			process.stderr.write(`Run 'mycofleet --help' for usage.\n`);
 			process.exit(1);
 		}
 	}
@@ -290,21 +290,28 @@ async function main(): Promise<void> {
 
 main().catch((err: unknown) => {
 	// Friendly message when running outside a git repository
-	if (err instanceof WorktreeError && err.message.includes("not a git repository")) {
-		process.stderr.write("Not in an overstory project. Run 'overstory init' first.\n");
+	if (err instanceof WorktreeError) {
+		const e = err as WorktreeError;
+		if (e.message.includes("not a git repository")) {
+			process.stderr.write("Not in a MycoFleet project. Run 'mycofleet init' first.\n");
+			process.exit(1);
+		}
+	}
+
+	if (err instanceof MycofleetError) {
+		const e = err as MycofleetError;
+		process.stderr.write(`Error [${e.code}]: ${e.message}\n`);
 		process.exit(1);
 	}
-	if (err instanceof OverstoryError) {
-		process.stderr.write(`Error [${err.code}]: ${err.message}\n`);
-		process.exit(1);
-	}
+
 	if (err instanceof Error) {
 		process.stderr.write(`Error: ${err.message}\n`);
 		if (process.argv.includes("--verbose")) {
-			process.stderr.write(`${err.stack}\n`);
+			process.stderr.write(`${err.stack ?? ""}\n`);
 		}
 		process.exit(1);
 	}
+
 	process.stderr.write(`Unknown error: ${String(err)}\n`);
 	process.exit(1);
 });

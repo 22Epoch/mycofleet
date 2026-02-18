@@ -1,5 +1,5 @@
 /**
- * CLI command: overstory worktree list | clean [--completed] [--all]
+ * CLI command: mycofleet worktree list | clean [--completed] [--all]
  *
  * List shows worktrees with agent status.
  * Clean removes worktree dirs, branch refs (if merged), and tmux sessions.
@@ -20,12 +20,12 @@ function hasFlag(args: string[], flag: string): boolean {
 }
 
 /**
- * Handle `overstory worktree list`.
+ * Handle `mycofleet worktree list`.
  */
 async function handleList(root: string, json: boolean): Promise<void> {
 	const worktrees = await listWorktrees(root);
-	const overstoryDir = join(root, ".overstory");
-	const { store } = openSessionStore(overstoryDir);
+	const mycofleetDir = join(root, ".mycofleet");
+	const { store } = openSessionStore(mycofleetDir);
 	let sessions: AgentSession[];
 	try {
 		sessions = store.getAll();
@@ -33,10 +33,10 @@ async function handleList(root: string, json: boolean): Promise<void> {
 		store.close();
 	}
 
-	const overstoryWts = worktrees.filter((wt) => wt.branch.startsWith("overstory/"));
+	const mycofleetWts = worktrees.filter((wt) => wt.branch.startsWith("mycofleet/"));
 
 	if (json) {
-		const entries = overstoryWts.map((wt) => {
+		const entries = mycofleetWts.map((wt) => {
 			const session = sessions.find((s) => s.worktreePath === wt.path);
 			return {
 				path: wt.path,
@@ -51,13 +51,13 @@ async function handleList(root: string, json: boolean): Promise<void> {
 		return;
 	}
 
-	if (overstoryWts.length === 0) {
+	if (mycofleetWts.length === 0) {
 		process.stdout.write("No agent worktrees found.\n");
 		return;
 	}
 
-	process.stdout.write(`🌳 Agent worktrees: ${overstoryWts.length}\n\n`);
-	for (const wt of overstoryWts) {
+	process.stdout.write(`🌳 Agent worktrees: ${mycofleetWts.length}\n\n`);
+	for (const wt of mycofleetWts) {
 		const session = sessions.find((s) => s.worktreePath === wt.path);
 		const state = session?.state ?? "unknown";
 		const agent = session?.agentName ?? "?";
@@ -69,15 +69,15 @@ async function handleList(root: string, json: boolean): Promise<void> {
 }
 
 /**
- * Handle `overstory worktree clean [--completed] [--all]`.
+ * Handle `mycofleet worktree clean [--completed] [--all]`.
  */
 async function handleClean(args: string[], root: string, json: boolean): Promise<void> {
 	const all = hasFlag(args, "--all");
 	const completedOnly = hasFlag(args, "--completed") || !all;
 
 	const worktrees = await listWorktrees(root);
-	const overstoryDir = join(root, ".overstory");
-	const { store } = openSessionStore(overstoryDir);
+	const mycofleetDir = join(root, ".mycofleet");
+	const { store } = openSessionStore(mycofleetDir);
 
 	let sessions: AgentSession[];
 	try {
@@ -87,12 +87,12 @@ async function handleClean(args: string[], root: string, json: boolean): Promise
 		return;
 	}
 
-	const overstoryWts = worktrees.filter((wt) => wt.branch.startsWith("overstory/"));
+	const mycofleetWts = worktrees.filter((wt) => wt.branch.startsWith("mycofleet/"));
 	const cleaned: string[] = [];
 	const failed: string[] = [];
 
 	try {
-		for (const wt of overstoryWts) {
+		for (const wt of mycofleetWts) {
 			const session = sessions.find((s) => s.worktreePath === wt.path);
 
 			// If --completed (default), only clean worktrees whose agent is done/zombie
@@ -137,7 +137,7 @@ async function handleClean(args: string[], root: string, json: boolean): Promise
 		// Purge mail for cleaned agents
 		let mailPurged = 0;
 		if (cleaned.length > 0) {
-			const mailDbPath = join(root, ".overstory", "mail.db");
+			const mailDbPath = join(root, ".mycofleet", "mail.db");
 			const mailDbFile = Bun.file(mailDbPath);
 			if (await mailDbFile.exists()) {
 				const mailStore = createMailStore(mailDbPath);
@@ -211,13 +211,13 @@ async function handleClean(args: string[], root: string, json: boolean): Promise
 }
 
 /**
- * Entry point for `overstory worktree <subcommand> [flags]`.
+ * Entry point for `mycofleet worktree <subcommand> [flags]`.
  *
  * Subcommands: list, clean.
  */
-const WORKTREE_HELP = `overstory worktree — Manage agent worktrees
+const WORKTREE_HELP = `mycofleet worktree — Manage agent worktrees
 
-Usage: overstory worktree <subcommand> [flags]
+Usage: mycofleet worktree <subcommand> [flags]
 
 Subcommands:
   list               List worktrees with agent status
