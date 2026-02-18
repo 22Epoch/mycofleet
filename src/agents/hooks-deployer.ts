@@ -529,7 +529,7 @@ export async function deployHooks(
 
 	const finalContent = `${JSON.stringify(config, null, "\t")}\n`;
 
-	const claudeDir = join(worktreePath, ".claude");
+	const claudeDir = join(projectRoot, ".claude");
 	const outputPath = join(claudeDir, "settings.local.json");
 
 	try {
