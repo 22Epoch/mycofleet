@@ -315,4 +315,3 @@ main().catch((err: unknown) => {
 	process.stderr.write(`Unknown error: ${String(err)}\n`);
 	process.exit(1);
 });
-
