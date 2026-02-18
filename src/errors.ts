@@ -1,28 +1,25 @@
 /**
  * Base error class for all MycoFleet errors.
- *
- * NOTE: We keep the upstream class name `OverstoryError` for compatibility while
- * exporting `MycofleetError` as a rebrand alias. This avoids breaking internal
- * imports/tests that still reference `OverstoryError` while allowing the CLI
- * to import `MycofleetError`.
- *
  * Includes a machine-readable `code` field for programmatic handling.
  */
-export class OverstoryError extends Error {
+export class MycofleetError extends Error {
 	readonly code: string;
 
 	constructor(message: string, code: string, options?: ErrorOptions) {
 		super(message, options);
-		this.name = "OverstoryError";
+		this.name = "MycofleetError";
 		this.code = code;
 	}
 }
+
+// Back-compat alias (so any leftover imports still work during rebrand)
+export { MycofleetError as OverstoryError };
 
 /**
  * Raised when config loading or validation fails.
  * Examples: missing config file, invalid YAML, schema violations.
  */
-export class ConfigError extends OverstoryError {
+export class ConfigError extends MycofleetError {
 	readonly configPath: string | null;
 	readonly field: string | null;
 
@@ -45,7 +42,7 @@ export class ConfigError extends OverstoryError {
  * Raised for agent lifecycle issues.
  * Examples: spawn failure, agent not found, depth limit exceeded.
  */
-export class AgentError extends OverstoryError {
+export class AgentError extends MycofleetError {
 	readonly agentName: string | null;
 	readonly capability: string | null;
 
@@ -68,7 +65,7 @@ export class AgentError extends OverstoryError {
  * Raised when hierarchy constraints are violated.
  * Examples: coordinator spawning a builder directly instead of through a lead.
  */
-export class HierarchyError extends OverstoryError {
+export class HierarchyError extends MycofleetError {
 	readonly agentName: string | null;
 	readonly requestedCapability: string | null;
 
@@ -91,7 +88,7 @@ export class HierarchyError extends OverstoryError {
  * Raised when git worktree operations fail.
  * Examples: worktree creation, branch conflicts, cleanup failures.
  */
-export class WorktreeError extends OverstoryError {
+export class WorktreeError extends MycofleetError {
 	readonly worktreePath: string | null;
 	readonly branchName: string | null;
 
@@ -114,7 +111,7 @@ export class WorktreeError extends OverstoryError {
  * Raised when mail system operations fail.
  * Examples: DB access errors, invalid message format, delivery failures.
  */
-export class MailError extends OverstoryError {
+export class MailError extends MycofleetError {
 	readonly agentName: string | null;
 	readonly messageId: string | null;
 
@@ -137,7 +134,7 @@ export class MailError extends OverstoryError {
  * Raised when merge or conflict resolution fails.
  * Examples: unresolvable conflicts, merge queue errors, tier escalation failures.
  */
-export class MergeError extends OverstoryError {
+export class MergeError extends MycofleetError {
 	readonly branchName: string | null;
 	readonly conflictFiles: string[];
 
@@ -160,7 +157,7 @@ export class MergeError extends OverstoryError {
  * Raised when input validation fails.
  * Examples: invalid agent names, malformed beadIds, bad CLI arguments.
  */
-export class ValidationError extends OverstoryError {
+export class ValidationError extends MycofleetError {
 	readonly field: string | null;
 	readonly value: unknown;
 
@@ -183,7 +180,7 @@ export class ValidationError extends OverstoryError {
  * Raised when task group operations fail.
  * Examples: group not found, duplicate member, auto-close failures.
  */
-export class GroupError extends OverstoryError {
+export class GroupError extends MycofleetError {
 	readonly groupId: string | null;
 
 	constructor(
@@ -203,7 +200,7 @@ export class GroupError extends OverstoryError {
  * Raised when session lifecycle operations fail.
  * Examples: checkpoint save/restore failures, handoff failures.
  */
-export class LifecycleError extends OverstoryError {
+export class LifecycleError extends MycofleetError {
 	readonly agentName: string | null;
 	readonly sessionId: string | null;
 
@@ -221,9 +218,3 @@ export class LifecycleError extends OverstoryError {
 		this.sessionId = context?.sessionId ?? null;
 	}
 }
-
-/**
- * Rebrand alias: allow the MycoFleet CLI to import `MycofleetError`.
- * This fixes: "has no exported member 'MycofleetError'".
- */
-export { OverstoryError as MycofleetError };
