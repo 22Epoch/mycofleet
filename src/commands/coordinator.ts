@@ -1,9 +1,9 @@
 /**
- * CLI command: overstory coordinator start|stop|status
+ * CLI command: mycofleet coordinator start|stop|status
  *
  * Manages the persistent coordinator agent lifecycle. The coordinator runs
  * at the project root (NOT in a worktree), receives work via mail and beads,
- * and dispatches agents via overstory sling.
+ * and dispatches agents via mycofleet sling.
  *
  * Unlike regular agents spawned by sling, the coordinator:
  * - Has no worktree (operates on the main working tree)
@@ -25,15 +25,18 @@ import type { AgentSession } from "../types.ts";
 import { isProcessRunning } from "../watchdog/health.ts";
 import { createSession, isSessionAlive, killSession, sendKeys } from "../worktree/tmux.ts";
 
+/** Rebranded tool directory. */
+const MYCOFLEET_DIR = ".mycofleet";
+
 /** Default coordinator agent name. */
 const COORDINATOR_NAME = "coordinator";
 
 /**
  * Build the tmux session name for the coordinator.
- * Includes the project name to prevent cross-project collisions (overstory-pcef).
+ * Includes the project name to prevent cross-project collisions.
  */
 function coordinatorTmuxSession(projectName: string): string {
-	return `overstory-${projectName}-${COORDINATOR_NAME}`;
+	return `mycofleet-${projectName}-${COORDINATOR_NAME}`;
 }
 
 /** Dependency injection for testing. Uses real implementations when omitted. */
@@ -66,19 +69,15 @@ export interface CoordinatorDeps {
  * Returns null if the file doesn't exist or can't be parsed.
  */
 async function readWatchdogPid(projectRoot: string): Promise<number | null> {
-	const pidFilePath = join(projectRoot, ".overstory", "watchdog.pid");
+	const pidFilePath = join(projectRoot, MYCOFLEET_DIR, "watchdog.pid");
 	const file = Bun.file(pidFilePath);
 	const exists = await file.exists();
-	if (!exists) {
-		return null;
-	}
+	if (!exists) return null;
 
 	try {
 		const text = await file.text();
 		const pid = Number.parseInt(text.trim(), 10);
-		if (Number.isNaN(pid) || pid <= 0) {
-			return null;
-		}
+		if (Number.isNaN(pid) || pid <= 0) return null;
 		return pid;
 	} catch {
 		return null;
@@ -89,7 +88,7 @@ async function readWatchdogPid(projectRoot: string): Promise<number | null> {
  * Remove the watchdog PID file.
  */
 async function removeWatchdogPid(projectRoot: string): Promise<void> {
-	const pidFilePath = join(projectRoot, ".overstory", "watchdog.pid");
+	const pidFilePath = join(projectRoot, MYCOFLEET_DIR, "watchdog.pid");
 	try {
 		await unlink(pidFilePath);
 	} catch {
@@ -99,7 +98,7 @@ async function removeWatchdogPid(projectRoot: string): Promise<void> {
 
 /**
  * Default watchdog implementation for production use.
- * Starts/stops the watchdog daemon via `overstory watch --background`.
+ * Starts/stops the watchdog daemon via `mycofleet watch --background`.
  */
 function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps["_watchdog"]> {
 	return {
@@ -116,56 +115,44 @@ function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps
 			}
 
 			// Start watchdog in background
-			const proc = Bun.spawn(["overstory", "watch", "--background"], {
+			const proc = Bun.spawn(["mycofleet", "watch", "--background"], {
 				cwd: projectRoot,
 				stdout: "pipe",
 				stderr: "pipe",
 			});
 
 			const exitCode = await proc.exited;
-			if (exitCode !== 0) {
-				return null; // Failed to start
-			}
+			if (exitCode !== 0) return null;
 
 			// Read the PID file that was written by the background process
 			const pid = await readWatchdogPid(projectRoot);
-			if (pid === null) {
-				return null; // PID file wasn't created
-			}
+			if (pid === null) return null;
 
 			return { pid };
 		},
 
 		async stop(): Promise<boolean> {
 			const pid = await readWatchdogPid(projectRoot);
-			if (pid === null) {
-				return false; // No PID file
-			}
+			if (pid === null) return false;
 
-			// Check if process is running
 			if (!isProcessRunning(pid)) {
-				// Process is dead, clean up PID file
 				await removeWatchdogPid(projectRoot);
 				return false;
 			}
 
-			// Kill the process
 			try {
 				process.kill(pid, 15); // SIGTERM
 			} catch {
 				return false;
 			}
 
-			// Remove PID file
 			await removeWatchdogPid(projectRoot);
 			return true;
 		},
 
 		async isRunning(): Promise<boolean> {
 			const pid = await readWatchdogPid(projectRoot);
-			if (pid === null) {
-				return false;
-			}
+			if (pid === null) return false;
 			return isProcessRunning(pid);
 		},
 	};
@@ -173,18 +160,19 @@ function createDefaultWatchdog(projectRoot: string): NonNullable<CoordinatorDeps
 
 /**
  * Default monitor implementation for production use.
- * Starts/stops the monitor agent via `overstory monitor start/stop`.
+ * Starts/stops the monitor agent via `mycofleet monitor start/stop`.
  */
 function createDefaultMonitor(projectRoot: string): NonNullable<CoordinatorDeps["_monitor"]> {
 	return {
 		async start(): Promise<{ pid: number } | null> {
-			const proc = Bun.spawn(["overstory", "monitor", "start", "--no-attach", "--json"], {
+			const proc = Bun.spawn(["mycofleet", "monitor", "start", "--no-attach", "--json"], {
 				cwd: projectRoot,
 				stdout: "pipe",
 				stderr: "pipe",
 			});
 			const exitCode = await proc.exited;
 			if (exitCode !== 0) return null;
+
 			try {
 				const stdout = await new Response(proc.stdout).text();
 				const result = JSON.parse(stdout.trim()) as { pid?: number };
@@ -194,7 +182,7 @@ function createDefaultMonitor(projectRoot: string): NonNullable<CoordinatorDeps[
 			}
 		},
 		async stop(): Promise<boolean> {
-			const proc = Bun.spawn(["overstory", "monitor", "stop", "--json"], {
+			const proc = Bun.spawn(["mycofleet", "monitor", "stop", "--json"], {
 				cwd: projectRoot,
 				stdout: "pipe",
 				stderr: "pipe",
@@ -203,13 +191,14 @@ function createDefaultMonitor(projectRoot: string): NonNullable<CoordinatorDeps[
 			return exitCode === 0;
 		},
 		async isRunning(): Promise<boolean> {
-			const proc = Bun.spawn(["overstory", "monitor", "status", "--json"], {
+			const proc = Bun.spawn(["mycofleet", "monitor", "status", "--json"], {
 				cwd: projectRoot,
 				stdout: "pipe",
 				stderr: "pipe",
 			});
 			const exitCode = await proc.exited;
 			if (exitCode !== 0) return false;
+
 			try {
 				const stdout = await new Response(proc.stdout).text();
 				const result = JSON.parse(stdout.trim()) as { running?: boolean };
@@ -228,26 +217,15 @@ function createDefaultMonitor(projectRoot: string): NonNullable<CoordinatorDeps[
 export function buildCoordinatorBeacon(): string {
 	const timestamp = new Date().toISOString();
 	const parts = [
-		`[OVERSTORY] ${COORDINATOR_NAME} (coordinator) ${timestamp}`,
+		`[MYCOFLEET] ${COORDINATOR_NAME} (coordinator) ${timestamp}`,
 		"Depth: 0 | Parent: none | Role: persistent orchestrator",
-		"HIERARCHY: You ONLY spawn leads (overstory sling --capability lead). Leads spawn scouts, builders, reviewers. NEVER spawn non-lead agents directly.",
+		"HIERARCHY: You ONLY spawn leads (mycofleet sling --capability lead). Leads spawn scouts, builders, reviewers. NEVER spawn non-lead agents directly.",
 		"DELEGATION: For any exploration/scouting, spawn a lead who will spawn scouts. Do NOT explore the codebase yourself beyond initial planning.",
-		`Startup: run mulch prime, check mail (overstory mail check --agent ${COORDINATOR_NAME}), check bd ready, check overstory group status, then begin work`,
+		`Startup: run mulch prime, check mail (mycofleet mail check --agent ${COORDINATOR_NAME}), check bd ready, check mycofleet group status, then begin work`,
 	];
 	return parts.join(" — ");
 }
 
-/**
- * Start the coordinator agent.
- *
- * 1. Verify no coordinator is already running
- * 2. Load config
- * 3. Create agent identity (if first time)
- * 4. Deploy hooks to project root's .claude/settings.local.json
- * 5. Spawn tmux session at project root with Claude Code
- * 6. Send startup beacon
- * 7. Record session in SessionStore (sessions.db)
- */
 /**
  * Determine whether to auto-attach to the tmux session after starting.
  * Exported for testing.
@@ -273,8 +251,8 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 	const tmuxSession = coordinatorTmuxSession(config.project.name);
 
 	// Check for existing coordinator
-	const overstoryDir = join(projectRoot, ".overstory");
-	const { store } = openSessionStore(overstoryDir);
+	const toolDirPath = join(projectRoot, MYCOFLEET_DIR);
+	const { store } = openSessionStore(toolDirPath);
 	try {
 		const existing = store.getByName(COORDINATOR_NAME);
 
@@ -297,14 +275,10 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 
 		// Deploy hooks to the project root so the coordinator gets event logging,
 		// mail check --inject, and activity tracking via the standard hook pipeline.
-		// The ENV_GUARD prefix on all hooks (both template and generated guards)
-		// ensures they only activate when OVERSTORY_AGENT_NAME is set (i.e. for
-		// the coordinator's tmux session), so the user's own Claude Code session
-		// at the project root is unaffected.
 		await deployHooks(projectRoot, COORDINATOR_NAME, "coordinator");
 
 		// Create coordinator identity if first run
-		const identityBaseDir = join(projectRoot, ".overstory", "agents");
+		const identityBaseDir = join(projectRoot, MYCOFLEET_DIR, "agents");
 		await mkdir(identityBaseDir, { recursive: true });
 		const existingIdentity = await loadIdentity(identityBaseDir, COORDINATOR_NAME);
 		if (!existingIdentity) {
@@ -327,26 +301,22 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 		const model = resolveModel(config, manifest, "coordinator", "opus");
 
 		// Spawn tmux session at project root with Claude Code (interactive mode).
-		// Inject the coordinator base definition via --append-system-prompt so the
-		// coordinator knows its role, hierarchy rules, and delegation patterns
-		// (overstory-gaio, overstory-0kwf).
-		const agentDefPath = join(projectRoot, ".overstory", "agent-defs", "coordinator.md");
+		const agentDefPath = join(projectRoot, MYCOFLEET_DIR, "agent-defs", "coordinator.md");
 		const agentDefFile = Bun.file(agentDefPath);
 		let claudeCmd = `claude --model ${model} --dangerously-skip-permissions`;
 		if (await agentDefFile.exists()) {
 			const agentDef = await agentDefFile.text();
-			// Single-quote the content for safe shell expansion (only escape single quotes)
 			const escaped = agentDef.replace(/'/g, "'\\''");
 			claudeCmd += ` --append-system-prompt '${escaped}'`;
 		}
+
+		// NOTE: keep env var name as-is if your hook templates still guard on it.
 		const pid = await tmux.createSession(tmuxSession, projectRoot, claudeCmd, {
 			OVERSTORY_AGENT_NAME: COORDINATOR_NAME,
 		});
 
 		// Record session BEFORE sending the beacon so that hook-triggered
 		// updateLastActivity() can find the entry and transition booting->working.
-		// Without this, a race exists: hooks fire before the session is persisted,
-		// leaving the coordinator stuck in "booting" (overstory-036f).
 		const session: AgentSession = {
 			id: `session-${Date.now()}-${COORDINATOR_NAME}`,
 			agentName: COORDINATOR_NAME,
@@ -357,7 +327,7 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 			tmuxSession,
 			state: "booting",
 			pid,
-			parentAgent: null, // Top of hierarchy
+			parentAgent: null,
 			depth: 0,
 			runId: null,
 			startedAt: new Date().toISOString(),
@@ -373,7 +343,6 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 		const beacon = buildCoordinatorBeacon();
 		await tmux.sendKeys(tmuxSession, beacon);
 
-		// Follow-up Enter to ensure submission (same pattern as sling.ts)
 		await Bun.sleep(500);
 		await tmux.sendKeys(tmuxSession, "");
 
@@ -432,11 +401,6 @@ async function startCoordinator(args: string[], deps: CoordinatorDeps = {}): Pro
 
 /**
  * Stop the coordinator agent.
- *
- * 1. Find the active coordinator session
- * 2. Kill the tmux session (with process tree cleanup)
- * 3. Mark session as completed in SessionStore
- * 4. Auto-complete the active run (if current-run.txt exists)
  */
 async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Promise<void> {
 	const tmux = deps._tmux ?? { createSession, isSessionAlive, killSession, sendKeys };
@@ -448,8 +412,8 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
 	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 
-	const overstoryDir = join(projectRoot, ".overstory");
-	const { store } = openSessionStore(overstoryDir);
+	const toolDirPath = join(projectRoot, MYCOFLEET_DIR);
+	const { store } = openSessionStore(toolDirPath);
 	try {
 		const session = store.getByName(COORDINATOR_NAME);
 
@@ -464,31 +428,26 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 			});
 		}
 
-		// Kill tmux session with process tree cleanup
 		const alive = await tmux.isSessionAlive(session.tmuxSession);
 		if (alive) {
 			await tmux.killSession(session.tmuxSession);
 		}
 
-		// Always attempt to stop watchdog
 		const watchdogStopped = await watchdog.stop();
-
-		// Always attempt to stop monitor
 		const monitorStopped = await monitor.stop();
 
-		// Update session state
 		store.updateState(COORDINATOR_NAME, "completed");
 		store.updateLastActivity(COORDINATOR_NAME);
 
 		// Auto-complete the current run
 		let runCompleted = false;
 		try {
-			const currentRunPath = join(overstoryDir, "current-run.txt");
+			const currentRunPath = join(toolDirPath, "current-run.txt");
 			const currentRunFile = Bun.file(currentRunPath);
 			if (await currentRunFile.exists()) {
 				const runId = (await currentRunFile.text()).trim();
 				if (runId.length > 0) {
-					const runStore = createRunStore(join(overstoryDir, "sessions.db"));
+					const runStore = createRunStore(join(toolDirPath, "sessions.db"));
 					try {
 						runStore.completeRun(runId, "completed");
 						runCompleted = true;
@@ -503,30 +462,24 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 				}
 			}
 		} catch {
-			// Non-fatal: run completion should not break coordinator stop
+			// Non-fatal
 		}
 
 		if (json) {
 			process.stdout.write(
-				`${JSON.stringify({ stopped: true, sessionId: session.id, watchdogStopped, monitorStopped, runCompleted })}\n`,
+				`${JSON.stringify({
+					stopped: true,
+					sessionId: session.id,
+					watchdogStopped,
+					monitorStopped,
+					runCompleted,
+				})}\n`,
 			);
 		} else {
 			process.stdout.write(`Coordinator stopped (session: ${session.id})\n`);
-			if (watchdogStopped) {
-				process.stdout.write("Watchdog stopped\n");
-			} else {
-				process.stdout.write("No watchdog running\n");
-			}
-			if (monitorStopped) {
-				process.stdout.write("Monitor stopped\n");
-			} else {
-				process.stdout.write("No monitor running\n");
-			}
-			if (runCompleted) {
-				process.stdout.write("Run completed\n");
-			} else {
-				process.stdout.write("No active run\n");
-			}
+			process.stdout.write(watchdogStopped ? "Watchdog stopped\n" : "No watchdog running\n");
+			process.stdout.write(monitorStopped ? "Monitor stopped\n" : "No monitor running\n");
+			process.stdout.write(runCompleted ? "Run completed\n" : "No active run\n");
 		}
 	} finally {
 		store.close();
@@ -535,8 +488,6 @@ async function stopCoordinator(args: string[], deps: CoordinatorDeps = {}): Prom
 
 /**
  * Show coordinator status.
- *
- * Checks session registry and tmux liveness to report actual state.
  */
 async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Promise<void> {
 	const tmux = deps._tmux ?? { createSession, isSessionAlive, killSession, sendKeys };
@@ -548,8 +499,8 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 	const watchdog = deps._watchdog ?? createDefaultWatchdog(projectRoot);
 	const monitor = deps._monitor ?? createDefaultMonitor(projectRoot);
 
-	const overstoryDir = join(projectRoot, ".overstory");
-	const { store } = openSessionStore(overstoryDir);
+	const toolDirPath = join(projectRoot, MYCOFLEET_DIR);
+	const { store } = openSessionStore(toolDirPath);
 	try {
 		const session = store.getByName(COORDINATOR_NAME);
 		const watchdogRunning = await watchdog.isRunning();
@@ -567,21 +518,14 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 				);
 			} else {
 				process.stdout.write("Coordinator is not running\n");
-				if (watchdogRunning) {
-					process.stdout.write("Watchdog: running\n");
-				}
-				if (monitorRunning) {
-					process.stdout.write("Monitor: running\n");
-				}
+				if (watchdogRunning) process.stdout.write("Watchdog: running\n");
+				if (monitorRunning) process.stdout.write("Monitor: running\n");
 			}
 			return;
 		}
 
 		const alive = await tmux.isSessionAlive(session.tmuxSession);
 
-		// Reconcile state: if session says active but tmux is dead, update.
-		// We already filtered out completed/zombie states above, so if tmux is dead
-		// this session needs to be marked as zombie.
 		if (!alive) {
 			store.updateState(COORDINATOR_NAME, "zombie");
 			store.updateLastActivity(COORDINATOR_NAME);
@@ -618,9 +562,9 @@ async function statusCoordinator(args: string[], deps: CoordinatorDeps = {}): Pr
 	}
 }
 
-const COORDINATOR_HELP = `overstory coordinator — Manage the persistent coordinator agent
+const COORDINATOR_HELP = `mycofleet coordinator — Manage the persistent coordinator agent
 
-Usage: overstory coordinator <subcommand> [flags]
+Usage: mycofleet coordinator <subcommand> [flags]
 
 Subcommands:
   start                    Start the coordinator (spawns Claude Code at project root)
@@ -640,15 +584,12 @@ General options:
 
 The coordinator runs at the project root and orchestrates work by:
   - Decomposing objectives into beads issues
-  - Dispatching agents via overstory sling
+  - Dispatching agents via mycofleet sling
   - Tracking batches via task groups
   - Handling escalations from agents and watchdog`;
 
 /**
- * Entry point for `overstory coordinator <subcommand>`.
- *
- * @param args - CLI arguments after "coordinator"
- * @param deps - Optional dependency injection for testing (tmux)
+ * Entry point for `mycofleet coordinator <subcommand>`.
  */
 export async function coordinatorCommand(
 	args: string[],
@@ -674,7 +615,7 @@ export async function coordinatorCommand(
 			break;
 		default:
 			throw new ValidationError(
-				`Unknown coordinator subcommand: ${subcommand}. Run 'overstory coordinator --help' for usage.`,
+				`Unknown coordinator subcommand: ${subcommand}. Run 'mycofleet coordinator --help' for usage.`,
 				{ field: "subcommand", value: subcommand },
 			);
 	}
