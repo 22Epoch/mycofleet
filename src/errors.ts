@@ -1,5 +1,11 @@
 /**
- * Base error class for all Overstory errors.
+ * Base error class for all MycoFleet errors.
+ *
+ * NOTE: We keep the upstream class name `OverstoryError` for compatibility while
+ * exporting `MycofleetError` as a rebrand alias. This avoids breaking internal
+ * imports/tests that still reference `OverstoryError` while allowing the CLI
+ * to import `MycofleetError`.
+ *
  * Includes a machine-readable `code` field for programmatic handling.
  */
 export class OverstoryError extends Error {
@@ -215,3 +221,9 @@ export class LifecycleError extends OverstoryError {
 		this.sessionId = context?.sessionId ?? null;
 	}
 }
+
+/**
+ * Rebrand alias: allow the MycoFleet CLI to import `MycofleetError`.
+ * This fixes: "has no exported member 'MycofleetError'".
+ */
+export { OverstoryError as MycofleetError };
